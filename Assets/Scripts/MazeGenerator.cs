@@ -6,7 +6,6 @@ public class MazeGenerator : MonoBehaviour
 {
     [Range(10, 250)]
     public int MazeWidth = 10, MazeHeight = 10;
-    public int width { get; set; }
 
     private List<MazeNode> unevaluatedNodes;
 
@@ -41,10 +40,12 @@ public class MazeGenerator : MonoBehaviour
         {
             for (int y = 0; y < MazeHeight; y++)
             {
-                MazeNode newFloor = Instantiate(floor, new Vector3(x, 0, y), Quaternion.identity, floorParent.transform).GetComponent<MazeNode>();
-                newFloor.Position = new Vector2Int(x, y);
-                mazeFloors.Add(newFloor.Position, newFloor);
-                unevaluatedNodes.Add(newFloor);
+                Instantiate(floor, new Vector3(x, 0, y), Quaternion.identity, floorParent.transform);
+
+                MazeNode newFloorNode = new MazeNode();
+                newFloorNode.Position = new Vector2Int(x, y);
+                mazeFloors.Add(newFloorNode.Position, newFloorNode);
+                unevaluatedNodes.Add(newFloorNode);
             }
         }
 
@@ -77,9 +78,7 @@ public class MazeGenerator : MonoBehaviour
     }
 
     public void GenerateMaze()
-    {
-        List<MazeNode> path = new();
-
+    { 
         MazeNode current = mazeFloors[new Vector2Int(Random.Range(0, MazeWidth),0)];
         while(unevaluatedNodes.Count > 0)
         {

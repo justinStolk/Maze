@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 7408614850155043074}
   - component: {fileID: 2048346572557962902}
   - component: {fileID: 718450772481626079}
-  - component: {fileID: 5984234966429282072}
   m_Layer: 0
   m_Name: MazeFloor
   m_TagString: Untagged
@@ -98,16 +97,3 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &5984234966429282072
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3795212174559059321}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 99d6ffb6d6f731648a22d8fd8b9ade5a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  walls: []

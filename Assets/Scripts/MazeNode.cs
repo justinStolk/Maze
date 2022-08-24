@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MazeNode : MonoBehaviour
+public class MazeNode
 {
     public bool Visited { get; set; }
     public MazeNode Parent { get; set; }
