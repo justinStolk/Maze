@@ -1,33 +1,59 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class MazeGenerator : MonoBehaviour
 {
-    [Range(10, 250)]
-    public int MazeWidth = 10, MazeHeight = 10;
+    public int MazeWidth { get; private set; }
+    public int MazeHeight { get; private set;}
+
+    [SerializeField] private InputField widthInputField;
+    [SerializeField] private InputField heighInputField;
 
     private List<MazeNode> unevaluatedNodes;
 
     private Dictionary<Vector2Int, MazeNode> mazeFloors = new();
     private Dictionary<Vector3, GameObject> mazeWalls = new();
 
+    private GameObject mazeParent;
+
     // Start is called before the first frame update
     void Start()
     {
+        MazeWidth = 10;
+        MazeHeight = 10;
+    }
+
+    public void GenerateMaze()
+    {
+        if(mazeParent != null)
+        {
+            Destroy(mazeParent);
+            mazeFloors.Clear();
+            mazeWalls.Clear();
+        }
         BuildNodes();
-        GenerateMaze();
+        CreateMaze();
     }
 
-    // Update is called once per frame
-    void Update()
+    public void SetHeight(string fieldInput)
     {
-        
+        int heightValue = Mathf.Clamp(int.Parse(fieldInput), 10, 250);
+        heighInputField.text = heightValue.ToString();
+        MazeHeight = heightValue;
     }
 
-    public void BuildNodes()
+    public void SetWidth(string fieldInput)
     {
-        GameObject mazeParent = new GameObject("Maze");
+        int widthvalue = Mathf.Clamp(int.Parse(fieldInput), 10, 250);
+        widthInputField.text = widthvalue.ToString();
+        MazeWidth = widthvalue;
+    }
+
+    private void BuildNodes()
+    {
+        mazeParent = new GameObject("Maze");
             
         unevaluatedNodes = new();
 
@@ -77,7 +103,7 @@ public class MazeGenerator : MonoBehaviour
         }
     }
 
-    public void GenerateMaze()
+    private void CreateMaze()
     { 
         MazeNode current = mazeFloors[new Vector2Int(Random.Range(0, MazeWidth),0)];
         while(unevaluatedNodes.Count > 0)
