@@ -8,15 +8,20 @@ public class MazeGenerator : MonoBehaviour
     public int MazeWidth { get; private set; }
     public int MazeHeight { get; private set;}
 
+    [Range(8, 64)]
+    public int MaxClusterSize;
+
     [SerializeField] private InputField widthInputField;
     [SerializeField] private InputField heighInputField;
 
     private List<MazeNode> unevaluatedNodes;
+    private List<MeshCluster> clusters = new();
 
     private Dictionary<Vector2Int, MazeNode> mazeFloors = new();
-    private Dictionary<Vector3, GameObject> mazeWalls = new();
+    private Dictionary<Vector3, MazeWall> mazeWalls = new();
 
     private GameObject mazeParent;
+    private GameObject wallParent;
 
     // Start is called before the first frame update
     void Start()
@@ -32,9 +37,12 @@ public class MazeGenerator : MonoBehaviour
             Destroy(mazeParent);
             mazeFloors.Clear();
             mazeWalls.Clear();
+            clusters.Clear();
         }
         BuildNodes();
         CreateMaze();
+        CreateClusters();
+        //wallParent.GetComponent<MeshCombiner>().CombineMeshes();
     }
 
     public void SetHeight(string fieldInput)
@@ -57,16 +65,16 @@ public class MazeGenerator : MonoBehaviour
             
         unevaluatedNodes = new();
 
-        GameObject floor = Resources.Load("MazeFloor") as GameObject;
+        //GameObject floor = Resources.Load("MazeFloor") as GameObject;
 
-        GameObject floorParent = new GameObject("Floors");
-        floorParent.transform.SetParent(mazeParent.transform);
+        //GameObject floorParent = new GameObject("Floors", typeof(MeshCombiner));
+        //floorParent.transform.SetParent(mazeParent.transform);
 
         for (int x = 0; x < MazeWidth; x++)
         {
             for (int y = 0; y < MazeHeight; y++)
             {
-                Instantiate(floor, new Vector3(x, 0, y), Quaternion.identity, floorParent.transform);
+                //Instantiate(floor, new Vector3(x, 0, y), Quaternion.identity, floorParent.transform);
 
                 MazeNode newFloorNode = new MazeNode();
                 newFloorNode.Position = new Vector2Int(x, y);
@@ -75,10 +83,14 @@ public class MazeGenerator : MonoBehaviour
             }
         }
 
-        GameObject wall = Resources.Load("WallParent") as GameObject;
+        //floorParent.GetComponent<MeshCombiner>().CombineMeshes();
 
-        GameObject wallParent = new GameObject("Walls");
-        wallParent.transform.SetParent(mazeParent.transform);
+        //StaticBatchingUtility.Combine(floorParent);
+
+        //GameObject wall = Resources.Load("MazeWall") as GameObject;
+
+        //wallParent = new GameObject("Walls", typeof(MeshCombiner));
+        //wallParent.transform.SetParent(mazeParent.transform);
 
         foreach (KeyValuePair<Vector2Int, MazeNode> pair in mazeFloors)
         {
@@ -88,12 +100,12 @@ public class MazeGenerator : MonoBehaviour
                 {
                     if(Mathf.Abs(x) != Mathf.Abs(y))
                     {
-                        Vector3 wallPosition = new Vector3(x + pair.Key.x, 0, y + pair.Key.y);
+                        Vector3 wallPosition = new Vector3(x + pair.Key.x, 0.5f, y + pair.Key.y);
                         if (!mazeWalls.ContainsKey(wallPosition))
                         {
-                            float rotation = y != 0 ? 90 : 0;
-                            GameObject newWall = Instantiate(wall, wallPosition, Quaternion.Euler(0, rotation, 0), wallParent.transform);
-                            mazeWalls.Add(wallPosition, newWall);
+                            //float rotation = y != 0 ? 90 : 0;
+                            //GameObject newWall = Instantiate(wall, wallPosition, Quaternion.Euler(0, rotation, 0), wallParent.transform);
+                            mazeWalls.Add(wallPosition, new MazeWall(wallPosition, y != 0));
                         }
                         pair.Value.walls.Add(mazeWalls[wallPosition]);
 
@@ -101,6 +113,9 @@ public class MazeGenerator : MonoBehaviour
                 }
             }
         }
+
+        //StaticBatchingUtility.Combine(wallParent);
+
     }
 
     private void CreateMaze()
@@ -117,12 +132,13 @@ public class MazeGenerator : MonoBehaviour
                 {
                     for(int i = targetNeighbour.walls.Count - 1; i >= 0; i--)
                     {
-                        GameObject wall = targetNeighbour.walls[i];
+                        MazeWall wall = targetNeighbour.walls[i];
                         if (current.walls.Contains(wall))
                         {
                             current.walls.Remove(wall);
                             targetNeighbour.walls.Remove(wall);
-                            Destroy(wall);
+                            mazeWalls.Remove(wall.Position);
+                            //Destroy(wall);
                         }
                     }
                     unevaluatedNodes.Remove(current);
@@ -182,4 +198,73 @@ public class MazeGenerator : MonoBehaviour
         }
 
     }
+
+    private void CreateClusters()
+    {
+        MeshCluster cluster = new MeshCluster(MaxClusterSize * MaxClusterSize, mazeParent.transform);
+        clusters.Add(cluster);
+
+        int clusterWidth = Mathf.CeilToInt((float)MazeWidth / MaxClusterSize);
+        int clusterHeight = Mathf.CeilToInt((float)MazeHeight / MaxClusterSize);
+
+        int clusterWidthIndex = 0;
+        int clusterHeightIndex = 0;
+
+
+        GameObject wall = Resources.Load("MazeWall") as GameObject;
+
+        wallParent = new GameObject("Walls");
+        wallParent.transform.SetParent(mazeParent.transform);
+
+
+        foreach (KeyValuePair<Vector3, MazeWall> pair in mazeWalls)
+        {
+            float rotation = pair.Value.Rotated ? 90 : 0;
+            Instantiate(wall, pair.Key, Quaternion.Euler(0, rotation, 0), wallParent.transform);
+        }
+
+        GameObject floor = Resources.Load("MazeFloor") as GameObject;
+        GameObject floorParent = new GameObject("Floors");
+
+        floorParent.transform.SetParent(mazeParent.transform);
+
+        while (true)
+        {
+            for (int w = 0; w < MaxClusterSize; w++)
+            {
+                for (int h = 0; h < MaxClusterSize; h++)
+                {
+                    Vector2Int nodePos = new Vector2Int(w + MaxClusterSize * clusterWidthIndex, h + MaxClusterSize * clusterHeightIndex);
+                    if (mazeFloors.ContainsKey(nodePos))
+                    {
+                        MeshFilter newFloor = Instantiate(floor, new Vector3(nodePos.x, 0, nodePos.y), Quaternion.identity, floorParent.transform).GetComponent<MeshFilter>();
+                        if (!cluster.CanAddMeshToCluster(newFloor))
+                        {
+                            Debug.Log("Couldn't add mesh to cluster!");
+                            cluster = new MeshCluster(MaxClusterSize * MaxClusterSize, mazeParent.transform);
+                            clusters.Add(cluster);
+                        }
+                        cluster.AddMeshToCluster(newFloor);
+                    }
+                }
+            }
+            clusterWidthIndex++;
+            if(clusterWidthIndex >= clusterWidth)
+            {
+                clusterWidthIndex = 0;
+                clusterHeightIndex++;
+                if(clusterHeightIndex >= clusterHeight)
+                {
+                    foreach (MeshCluster c in clusters)
+                    {
+                        c.CreateUnifiedMesh();
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+
+
 }

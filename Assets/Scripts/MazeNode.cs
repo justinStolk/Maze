@@ -8,6 +8,6 @@ public class MazeNode
     public MazeNode Parent { get; set; }
     public Vector2Int Position { get; set; }
 
-    public List<GameObject> walls = new(); 
+    public List<MazeWall> walls = new(); 
 
 }
