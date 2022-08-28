@@ -34,6 +34,7 @@ public class MazeGenerator : MonoBehaviour
     {
         if(mazeParent != null)
         {
+            //We clear the List and Dictionaries if we had already made a maze. We destroy the mazeParent and since the maze objects are children, they're also destroyed along with it.
             Destroy(mazeParent);
             mazeFloors.Clear();
             mazeWalls.Clear();
@@ -42,18 +43,21 @@ public class MazeGenerator : MonoBehaviour
         BuildNodes();
         CreateMaze();
         CreateClusters();
-        //wallParent.GetComponent<MeshCombiner>().CombineMeshes();
     }
 
     public void SetHeight(string fieldInput)
     {
+        //We receive a value for the height from the InputField, clamp it between 10 and 250 and return this value to the InputField
+        //(setting it correctly if it was below or above the allowed values.)
         int heightValue = Mathf.Clamp(int.Parse(fieldInput), 10, 250);
         heighInputField.text = heightValue.ToString();
         MazeHeight = heightValue;
     }
 
     public void SetWidth(string fieldInput)
-    {
+    {        
+        //We receive a value for the width from the InputField, clamp it between 10 and 250 and return this value to the InputField
+        //(setting it correctly if it was below or above the allowed values.)
         int widthvalue = Mathf.Clamp(int.Parse(fieldInput), 10, 250);
         widthInputField.text = widthvalue.ToString();
         MazeWidth = widthvalue;
@@ -61,21 +65,16 @@ public class MazeGenerator : MonoBehaviour
 
     private void BuildNodes()
     {
+        //Whether or not this was just destroyed, we're going to make a new GameObject to build the maze underneath.
         mazeParent = new GameObject("Maze");
             
         unevaluatedNodes = new();
-
-        //GameObject floor = Resources.Load("MazeFloor") as GameObject;
-
-        //GameObject floorParent = new GameObject("Floors", typeof(MeshCombiner));
-        //floorParent.transform.SetParent(mazeParent.transform);
 
         for (int x = 0; x < MazeWidth; x++)
         {
             for (int y = 0; y < MazeHeight; y++)
             {
-                //Instantiate(floor, new Vector3(x, 0, y), Quaternion.identity, floorParent.transform);
-
+                //We create new nodes over the width and height of the Maze, set their positions and add them to the Dictionary and the unevaluated nodes.
                 MazeNode newFloorNode = new MazeNode();
                 newFloorNode.Position = new Vector2Int(x, y);
                 mazeFloors.Add(newFloorNode.Position, newFloorNode);
@@ -83,15 +82,7 @@ public class MazeGenerator : MonoBehaviour
             }
         }
 
-        //floorParent.GetComponent<MeshCombiner>().CombineMeshes();
-
-        //StaticBatchingUtility.Combine(floorParent);
-
-        //GameObject wall = Resources.Load("MazeWall") as GameObject;
-
-        //wallParent = new GameObject("Walls", typeof(MeshCombiner));
-        //wallParent.transform.SetParent(mazeParent.transform);
-
+        //We're setting up walls on every side of a MazeNode and add the position to the wall Dictionary. We also let the nodes keep track of the walls adjacent to them.
         foreach (KeyValuePair<Vector2Int, MazeNode> pair in mazeFloors)
         {
             for (float x = -0.5f; x <= 0.5f; x += 0.5f)
@@ -103,44 +94,46 @@ public class MazeGenerator : MonoBehaviour
                         Vector3 wallPosition = new Vector3(x + pair.Key.x, 0.5f, y + pair.Key.y);
                         if (!mazeWalls.ContainsKey(wallPosition))
                         {
-                            //float rotation = y != 0 ? 90 : 0;
-                            //GameObject newWall = Instantiate(wall, wallPosition, Quaternion.Euler(0, rotation, 0), wallParent.transform);
                             mazeWalls.Add(wallPosition, new MazeWall(wallPosition, y != 0));
                         }
-                        pair.Value.walls.Add(mazeWalls[wallPosition]);
+                        pair.Value.Walls.Add(mazeWalls[wallPosition]);
 
                     }
                 }
             }
         }
 
-        //StaticBatchingUtility.Combine(wallParent);
-
     }
 
     private void CreateMaze()
     { 
+        //We start the maze at a random node at the bottom of the screen.
         MazeNode current = mazeFloors[new Vector2Int(Random.Range(0, MazeWidth),0)];
         while(unevaluatedNodes.Count > 0)
         {
+            //We mark our current MazeNode as visited and get it's neighbours.
             current.Visited = true;
             List<MazeNode> neighbours = GetNeighbours(current);
             while(neighbours.Count > 0)
             {
+                //We grab a random neighbour from all that are available.
                 MazeNode targetNeighbour = neighbours[Random.Range(0, neighbours.Count)];
                 if (!targetNeighbour.Visited)
                 {
-                    for(int i = targetNeighbour.walls.Count - 1; i >= 0; i--)
+                    //We're going to evaluate the neighbours walls, because we want to travel to it. Between every node is 1 shared wall and we're evaluating to find it.
+                    //If the current wall is shared between nodes, both nodes remove it. This changes the list's size, which is why we're counting back.
+                    for(int i = targetNeighbour.Walls.Count - 1; i >= 0; i--)
                     {
-                        MazeWall wall = targetNeighbour.walls[i];
-                        if (current.walls.Contains(wall))
+                        MazeWall wall = targetNeighbour.Walls[i];
+                        if (current.Walls.Contains(wall))
                         {
-                            current.walls.Remove(wall);
-                            targetNeighbour.walls.Remove(wall);
+                            current.Walls.Remove(wall);
+                            targetNeighbour.Walls.Remove(wall);
                             mazeWalls.Remove(wall.Position);
-                            //Destroy(wall);
                         }
                     }
+                    //Now that we've found a valid neighbouring node, we have evaluated the current node and we can set the neighbour's parent to this node.
+                    //After this, the neighbour becomes our current node and we can remove the other neighbours from the list and start over.
                     unevaluatedNodes.Remove(current);
                     targetNeighbour.Parent = current;
                     current = targetNeighbour;
@@ -148,9 +141,11 @@ public class MazeGenerator : MonoBehaviour
                 }
                 else
                 {
+                    //If the neighbour was already visited, we can skip it and we remove it from the list.
                     neighbours.Remove(targetNeighbour);
                     if(neighbours.Count == 0)
                     {
+                        //If no unvisited neighbours are left, we've reached a dead-end and we should go back until we have an unvisited neighbour again.
                         current = GetBacktrackedNode(current);
                     }
                 }
@@ -160,6 +155,7 @@ public class MazeGenerator : MonoBehaviour
 
     private List<MazeNode> GetNeighbours(MazeNode from)
     {
+        //We create a list for the result and get the neighbours, through Manhattan distance, from the "from" node. Skips possibilities outside of the maze for the border nodes too.
         List<MazeNode> result = new();
         for(int x = -1; x <= 1; x++)
         {
@@ -181,6 +177,8 @@ public class MazeGenerator : MonoBehaviour
         MazeNode evaluatedNode = from;
         while (true)
         {
+            //We're checking if the evaluatedNode has a neighbour that isn't visited. If yes, we can return this node. If no, we make sure this node isn't evaluated again.
+            //After that, we check if the unevaluatedNodes list is empty, if yes, we're done. If no, we set the evaluated node to it's own parent and do this again.
             List<MazeNode> neighbours = GetNeighbours(evaluatedNode);
             foreach (MazeNode n in neighbours)
             {
@@ -201,16 +199,18 @@ public class MazeGenerator : MonoBehaviour
 
     private void CreateClusters()
     {
+        //We create a new cluster, set it's size and the parent object.
         MeshCluster cluster = new MeshCluster(MaxClusterSize * MaxClusterSize, mazeParent.transform);
         clusters.Add(cluster);
 
+        //Calculation for the amount of necessary clusters.
         int clusterWidth = Mathf.CeilToInt((float)MazeWidth / MaxClusterSize);
         int clusterHeight = Mathf.CeilToInt((float)MazeHeight / MaxClusterSize);
 
         int clusterWidthIndex = 0;
         int clusterHeightIndex = 0;
 
-
+        //Both the walls and floors are prefabs that are loaded at runtime, to keep the inspector clean.
         GameObject wall = Resources.Load("MazeWall") as GameObject;
 
         wallParent = new GameObject("Walls");
@@ -219,6 +219,7 @@ public class MazeGenerator : MonoBehaviour
 
         foreach (KeyValuePair<Vector3, MazeWall> pair in mazeWalls)
         {
+            //We instantiate a wall and rotate it based on the information if it has to be rotated, stored in the wall itself.
             float rotation = pair.Value.Rotated ? 90 : 0;
             Instantiate(wall, pair.Key, Quaternion.Euler(0, rotation, 0), wallParent.transform);
         }
@@ -237,17 +238,20 @@ public class MazeGenerator : MonoBehaviour
                     Vector2Int nodePos = new Vector2Int(w + MaxClusterSize * clusterWidthIndex, h + MaxClusterSize * clusterHeightIndex);
                     if (mazeFloors.ContainsKey(nodePos))
                     {
+                        //We create a new floor here and get the meshfilter, so we can add it to the cluster for combining.
                         MeshFilter newFloor = Instantiate(floor, new Vector3(nodePos.x, 0, nodePos.y), Quaternion.identity, floorParent.transform).GetComponent<MeshFilter>();
                         if (!cluster.CanAddMeshToCluster(newFloor))
                         {
-                            Debug.Log("Couldn't add mesh to cluster!");
+                            //If it doesn't fit in the cluster, we create a new one and add it to the list.
                             cluster = new MeshCluster(MaxClusterSize * MaxClusterSize, mazeParent.transform);
                             clusters.Add(cluster);
                         }
+                        //We always add the new floor to a cluster, already existing or just created.
                         cluster.AddMeshToCluster(newFloor);
                     }
                 }
             }
+            //It is predetermined how many clusters are necessary and this code handles it.
             clusterWidthIndex++;
             if(clusterWidthIndex >= clusterWidth)
             {
@@ -255,6 +259,7 @@ public class MazeGenerator : MonoBehaviour
                 clusterHeightIndex++;
                 if(clusterHeightIndex >= clusterHeight)
                 {
+                    //If we're done, we loop through every cluster and let them create a singular mesh from the separate ones they contain.
                     foreach (MeshCluster c in clusters)
                     {
                         c.CreateUnifiedMesh();

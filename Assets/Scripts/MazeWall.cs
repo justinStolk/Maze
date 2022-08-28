@@ -12,6 +12,8 @@ public class MazeWall
     public MazeWall(Vector3 position, bool isRotated)
     {
         Position = position;
+
+        //Does the wall need to be rotated 90 degrees when created?
         Rotated = isRotated;
     }
 
